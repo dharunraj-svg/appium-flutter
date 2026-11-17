@@ -1,0 +1,126 @@
+import { byType, byValueKey, descendant } from 'appium-flutter-finder';
+
+const SHORT_WAIT_MS = 30_000;
+const PROBE_TIMEOUT_MS = 1_000;
+const POLL_INTERVAL_MS = 500;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export class ClockDialogPage {
+  constructor(driver) {
+    this.driver = driver;
+    this.emailField = byValueKey('kiosk_clock_email_field');
+    this.passwordField = byValueKey('kiosk_clock_password_field');
+    this.continueButton = byValueKey('kiosk_clock_continue_button');
+    this.startShiftButton = byValueKey('kiosk_clock_start_shift_button');
+    this.endBreakButton = byValueKey('kiosk_clock_end_break_button');
+    this.startBreakButton = byValueKey('kiosk_clock_start_break_button');
+    this.endShiftButton = byValueKey('kiosk_clock_end_shift_button');
+    this.actionErrorNotice = byValueKey('kiosk_clock_action_error_notice');
+    this.authErrorNotice = byValueKey('kiosk_clock_auth_error_notice');
+    // getText only reads an actual Text/RichText/EditableText widget, not a
+    // composite wrapper — EmployeeClockErrorNotice's key is on its outer
+    // Container, so reading its message needs the inner Text descendant.
+    this.actionErrorText = descendant({
+      of: this.actionErrorNotice,
+      matching: byType('Text'),
+      firstMatchOnly: true,
+    });
+    this.authErrorText = descendant({
+      of: this.authErrorNotice,
+      matching: byType('Text'),
+      firstMatchOnly: true,
+    });
+  }
+
+  async authenticate(employee) {
+    await this.driver.elementSendKeys(this.emailField, employee.email);
+    await this.driver.elementSendKeys(this.passwordField, employee.password);
+    await this.driver.elementClick(this.continueButton);
+  }
+
+  async isVisible(finder) {
+    try {
+      await this.driver.execute('flutter:waitFor', finder, PROBE_TIMEOUT_MS);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async readActionError() {
+    try {
+      return await this.driver.getElementText(this.actionErrorText);
+    } catch {
+      return null;
+    }
+  }
+
+  async readAuthError() {
+    try {
+      return await this.driver.getElementText(this.authErrorText);
+    } catch {
+      return null;
+    }
+  }
+
+  // Three mutually exclusive states (see _buildClockControls in
+  // employee_clock_dialog.dart): not started (Start Shift only), active and
+  // not on break (Start Break + End Shift), on break (End Break only).
+  async waitForClockControls(timeoutMs = SHORT_WAIT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await this.isVisible(this.startShiftButton)) return 'off-shift';
+      if (await this.isVisible(this.endBreakButton)) return 'on-break';
+      if (await this.isVisible(this.endShiftButton)) return 'on-shift';
+      await sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error('Clock controls did not appear after authentication');
+  }
+
+  async startShift() {
+    await this.driver.elementClick(this.startShiftButton);
+  }
+
+  async startBreak() {
+    await this.driver.elementClick(this.startBreakButton);
+  }
+
+  async endBreak() {
+    await this.driver.elementClick(this.endBreakButton);
+  }
+
+  async endShift() {
+    await this.driver.elementClick(this.endShiftButton);
+  }
+
+  async waitUntil(finder, expected, timeoutMs = SHORT_WAIT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if ((await this.isVisible(finder)) === expected) return;
+      const errorText = await this.readActionError();
+      if (errorText) {
+        throw new Error(`Clock action failed on screen: ${errorText}`);
+      }
+      await sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error(`Timed out waiting for the clock state to change (expected visible=${expected})`);
+  }
+
+  async waitUntilOnShift() {
+    await this.waitUntil(this.endShiftButton, true);
+  }
+
+  async waitUntilOffShift() {
+    await this.waitUntil(this.startShiftButton, true);
+  }
+
+  async waitUntilOnBreak() {
+    await this.waitUntil(this.endBreakButton, true);
+  }
+
+  // Back to "on shift, not on break" — Start Break is visible again.
+  async waitUntilShiftActive() {
+    await this.waitUntil(this.startBreakButton, true);
+  }
+}

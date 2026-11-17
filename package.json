@@ -1,0 +1,25 @@
+{
+  "name": "appium-flutter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Appium Flutter-driver end-to-end tests for the RunLoyal kiosk app",
+  "type": "module",
+  "scripts": {
+    "doctor": "node scripts/doctor.js",
+    "test": "node --env-file-if-exists=.env --test tests/kiosk/suite.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:separate-sessions": "node --env-file-if-exists=.env --test --test-concurrency=1 tests/kiosk/login.test.js tests/kiosk/clock-in-out.test.js tests/kiosk/clock-in-wrong-credentials.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:login": "node --env-file-if-exists=.env --test tests/kiosk/login.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:clock-in": "node --env-file-if-exists=.env --test tests/kiosk/clock-in-out.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:clock-in-wrong-credentials": "node --env-file-if-exists=.env --test tests/kiosk/clock-in-wrong-credentials.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:android": "node --env-file-if-exists=.env --test tests/kiosk/android-suite.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "report": "node scripts/build-report.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "appium-flutter-finder": "^0.3.0",
+    "webdriverio": "^10.1.0"
+  }
+}

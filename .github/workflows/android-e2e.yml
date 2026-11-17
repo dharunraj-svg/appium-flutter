@@ -1,0 +1,115 @@
+name: Kiosk Android E2E
+
+# This workflow does NOT build the kiosk app from source — the kiosk repo
+# lives on Bitbucket (bitbucket.org/itrust_ventures/staff-turbo-flutter), not
+# GitHub, so a GitHub PR trigger isn't available there. Instead this workflow
+# downloads an already-built debug APK from a URL you provide and runs the
+# Appium suite against it on a GitHub-hosted Android emulator. Wherever the
+# APK gets built (locally, Codemagic, a Bitbucket Pipeline, etc.) can trigger
+# this workflow with `gh workflow run` / the Actions "Run workflow" button,
+# or via `repository_dispatch` if you want it automatic later.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: "URL to download the kiosk debug APK from. Defaults to the KIOSK_APK_URL secret if left blank."
+        required: false
+        type: string
+
+concurrency:
+  group: kiosk-android-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the appium-flutter test suite
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up JDK (required by the Android SDK tooling)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Install Appium and its drivers
+        # Pinned to the version this suite was built and verified against —
+        # appium-flutter-driver resolves its own compatible version against
+        # whatever Appium is installed, so an unpinned `npm install -g appium`
+        # could silently pick up a newer major version this suite has never
+        # been run against.
+        run: |
+          npm install -g appium@3.9.0
+          appium driver install uiautomator2
+          appium driver install --source=npm appium-flutter-driver
+
+      - name: Download the kiosk debug APK
+        env:
+          APK_URL: ${{ inputs.apk_url || secrets.KIOSK_APK_URL }}
+        run: |
+          if [ -z "$APK_URL" ]; then
+            echo "::error::No APK URL given. Pass apk_url when running this workflow, or set the KIOSK_APK_URL repository secret."
+            exit 1
+          fi
+          curl -fsSL "$APK_URL" -o "$RUNNER_TEMP/kiosk-debug.apk"
+          echo "KIOSK_APK_PATH=$RUNNER_TEMP/kiosk-debug.apk" >> "$GITHUB_ENV"
+
+      - name: Start Appium server
+        run: |
+          appium --log-level error > appium.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4723/status > /dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::Appium server did not become ready in time."
+          cat appium.log
+          exit 1
+
+      # reactivecircus/android-emulator-runner boots a real Android Virtual
+      # Device on the runner (enabling KVM acceleration itself on Linux),
+      # runs the given script while it's up, then shuts it down — so the
+      # emulator's whole lifecycle for this run is just this one step.
+      - name: Run the Android E2E suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: npm run test:android
+        env:
+          TARGET_APP: kiosk-android
+          KIOSK_APK_PATH: ${{ env.KIOSK_APK_PATH }}
+          ANDROID_UDID: emulator-5554
+          KIOSK_TEST_EMAIL: ${{ secrets.KIOSK_TEST_EMAIL }}
+          KIOSK_TEST_PASSWORD: ${{ secrets.KIOSK_TEST_PASSWORD }}
+          KIOSK_EMPLOYEE_EMAIL: ${{ secrets.KIOSK_EMPLOYEE_EMAIL }}
+          KIOSK_EMPLOYEE_PASSWORD_OR_PIN: ${{ secrets.KIOSK_EMPLOYEE_PASSWORD_OR_PIN }}
+          KIOSK_SIM_LATITUDE: ${{ vars.KIOSK_SIM_LATITUDE }}
+          KIOSK_SIM_LONGITUDE: ${{ vars.KIOSK_SIM_LONGITUDE }}
+
+      - name: Upload the HTML report and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiosk-android-report
+          path: |
+            logs/report/latest.html
+            logs/*-failure.png
+          if-no-files-found: ignore
+          retention-days: 14
