@@ -75,6 +75,10 @@ jobs:
             exit 1
           fi
           curl -fsSL "$APK_URL" -o "$RUNNER_TEMP/kiosk-debug.apk"
+          if ! unzip -l "$RUNNER_TEMP/kiosk-debug.apk" | grep -q 'AndroidManifest.xml'; then
+            echo "::error::The URL did not return an APK. Use a direct download link to the .apk file, not a web page."
+            exit 1
+          fi
           echo "KIOSK_APK_PATH=$RUNNER_TEMP/kiosk-debug.apk" >> "$GITHUB_ENV"
 
       - name: Start Appium server
