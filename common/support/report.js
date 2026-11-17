@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
-import { screenshot } from './simulator.js';
+import { takeScreenshot } from './device.js';
 
 const REPORT_DIR = new URL('../../logs/report/', import.meta.url);
 const SCREENS_DIR = new URL('screens/', REPORT_DIR);
@@ -25,7 +25,7 @@ const noopRecorder = {
   async finish() {},
 };
 
-export function createStepRecorder({ testFile, testName, udid }) {
+export function createStepRecorder({ testFile, testName, udid, platform = 'ios' }) {
   if (!udid) return noopRecorder;
 
   mkdirSync(SCREENS_DIR, { recursive: true });
@@ -37,7 +37,7 @@ export function createStepRecorder({ testFile, testName, udid }) {
       stepIndex += 1;
       const shotName = `${testSlug}-${String(stepIndex).padStart(2, '0')}-${slug(name)}.png`;
       const shotPath = new URL(shotName, SCREENS_DIR).pathname;
-      await screenshot(udid, shotPath).catch(() => {});
+      await takeScreenshot(platform, udid, shotPath).catch(() => {});
       appendRecord({
         testFile,
         testName,

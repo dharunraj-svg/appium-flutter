@@ -49,6 +49,7 @@ describe('kiosk suite — Android (one shared app session)', () => {
       testFile: 'android-suite.test.js',
       testName: 'login',
       udid: config.device.udid,
+      platform: 'android',
     });
     try {
       await loginAsKioskStaff(driver, config.users.kioskStaff, { recorder });
@@ -64,6 +65,7 @@ describe('kiosk suite — Android (one shared app session)', () => {
       testFile: 'android-suite.test.js',
       testName: 'clock in, break, and out',
       udid: config.device.udid,
+      platform: 'android',
     });
     try {
       // Already logged in by the previous test — clockInAndOut picks up
@@ -95,6 +97,7 @@ describe('kiosk suite — Android (one shared app session)', () => {
       testFile: 'android-suite.test.js',
       testName: 'wrong employee PIN rejected',
       udid: config.device.udid,
+      platform: 'android',
     });
     try {
       const errorText = await attemptClockInWithWrongCredentials(driver, {

@@ -25,6 +25,7 @@ test(TEST_NAME, { timeout: 300_000 }, async () => {
     testFile: 'android-login.test.js',
     testName: `${TEST_NAME} (${config.app.displayName})`,
     udid: config.device.udid,
+    platform: 'android',
   });
   const driver = await openSession(config);
   try {
