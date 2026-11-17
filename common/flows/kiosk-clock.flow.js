@@ -47,7 +47,7 @@ export async function clockInAndOut(driver, { employee, location, udid, platform
   await selectLocation.openClockDialog();
   await recorder.step('Clock-in dialog opened');
 
-  const dialog = new ClockDialogPage(driver);
+  const dialog = new ClockDialogPage(driver, { androidDeviceId: platform === 'android' ? udid : null });
   await dialog.authenticate(employee);
 
   const initialState = await dialog.waitForClockControls();
