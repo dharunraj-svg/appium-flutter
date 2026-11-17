@@ -104,6 +104,7 @@ describe('kiosk suite — Android (one shared app session)', () => {
         email: config.users.employee.email,
         wrongCredential: WRONG_PIN,
         recorder,
+        androidDeviceId: config.device.udid,
       });
       assert.equal(errorText, EXPECTED_ERROR);
       await recorder.finish('PASSED');

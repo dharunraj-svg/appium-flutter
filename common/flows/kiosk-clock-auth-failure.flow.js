@@ -9,14 +9,14 @@ const noopRecorder = { step: async () => {} };
 // mean the wrong credential was wrongly accepted.
 export async function attemptClockInWithWrongCredentials(
   driver,
-  { email, wrongCredential, recorder = noopRecorder },
+  { email, wrongCredential, recorder = noopRecorder, androidDeviceId = null },
 ) {
   const selectLocation = new SelectLocationPage(driver);
   await selectLocation.waitUntilShown();
   await selectLocation.openClockDialog();
   await recorder.step('Clock-in dialog opened');
 
-  const dialog = new ClockDialogPage(driver);
+  const dialog = new ClockDialogPage(driver, { androidDeviceId });
   await dialog.authenticate({ email, password: wrongCredential });
   await recorder.step('Wrong credential submitted');
 

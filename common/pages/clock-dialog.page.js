@@ -1,14 +1,19 @@
 import { byType, byValueKey, descendant } from 'appium-flutter-finder';
 
+import { dismissNotRespondingDialog } from '../support/android.js';
+
 const SHORT_WAIT_MS = 30_000;
 const PROBE_TIMEOUT_MS = 1_000;
 const POLL_INTERVAL_MS = 500;
+const STALL_CHECK_INTERVAL_MS = 5_000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class ClockDialogPage {
-  constructor(driver) {
+  constructor(driver, { androidDeviceId = null } = {}) {
     this.driver = driver;
+    this.androidDeviceId = androidDeviceId;
+    this.lastStallCheck = 0;
     this.emailField = byValueKey('kiosk_clock_email_field');
     this.passwordField = byValueKey('kiosk_clock_password_field');
     this.continueButton = byValueKey('kiosk_clock_continue_button');
@@ -47,6 +52,12 @@ export class ClockDialogPage {
     } catch {
       return false;
     }
+  }
+
+  async dismissStalls() {
+    if (!this.androidDeviceId || Date.now() - this.lastStallCheck < STALL_CHECK_INTERVAL_MS) return;
+    this.lastStallCheck = Date.now();
+    await dismissNotRespondingDialog(this.androidDeviceId).catch(() => {});
   }
 
   async readActionError() {
@@ -103,6 +114,7 @@ export class ClockDialogPage {
       if (errorText) {
         throw new Error(`Clock action failed on screen: ${errorText}`);
       }
+      await this.dismissStalls();
       await sleep(POLL_INTERVAL_MS);
     }
     throw new Error(`Timed out waiting for the clock state to change (expected visible=${expected})`);
@@ -132,6 +144,7 @@ export class ClockDialogPage {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (await this.isVisible(this.emailField)) return;
+      await this.dismissStalls();
       await sleep(POLL_INTERVAL_MS);
     }
     throw new Error('Clock-in dialog did not open — the email field never appeared');
