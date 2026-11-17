@@ -34,6 +34,7 @@ export class ClockDialogPage {
   }
 
   async authenticate(employee) {
+    await this.waitUntilOpen();
     await this.driver.elementSendKeys(this.emailField, employee.email);
     await this.driver.elementSendKeys(this.passwordField, employee.password);
     await this.driver.elementClick(this.continueButton);
@@ -122,5 +123,23 @@ export class ClockDialogPage {
   // Back to "on shift, not on break" — Start Break is visible again.
   async waitUntilShiftActive() {
     await this.waitUntil(this.startBreakButton, true);
+  }
+
+  // The location screen stays mounted underneath the dialog, so its clock chip
+  // is visible whether the dialog is open, closing, or gone. Only the dialog's
+  // own fields tell us when it has actually opened.
+  async waitUntilOpen(timeoutMs = SHORT_WAIT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await this.isVisible(this.emailField)) return;
+      await sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error('Clock-in dialog did not open — the email field never appeared');
+  }
+
+  // Ending a shift closes the dialog. Wait for its controls to disappear before
+  // treating the location screen as ready for the next tap on the clock chip.
+  async waitUntilDismissed() {
+    await this.waitUntil(this.endShiftButton, false);
   }
 }

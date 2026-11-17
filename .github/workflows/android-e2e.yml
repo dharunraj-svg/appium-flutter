@@ -13,9 +13,26 @@ on:
   workflow_dispatch:
     inputs:
       apk_url:
-        description: "URL to download the kiosk debug APK from. Defaults to the KIOSK_APK_URL secret if left blank."
+        description: "Direct link to the debug APK. Required for kennel and groomers. The kiosk falls back to the KIOSK_APK_URL secret when left blank."
         required: false
         type: string
+      app:
+        description: "App to test. Every app runs the shared sign-in test; only the kiosk also runs the clock-in tests."
+        required: true
+        type: choice
+        options:
+          - RunLoyal Frontend Desk KIOSK
+          - StaffApp Plus for Kennel
+          - StaffApp Plus for Groomers
+        default: RunLoyal Frontend Desk KIOSK
+      device_type:
+        description: "Emulator form factor. mobile is a Pixel 6 phone; tablet is a Pixel Tablet."
+        required: true
+        type: choice
+        options:
+          - mobile
+          - tablet
+        default: mobile
       target_environment:
         description: "GitHub environment whose secrets this run uses. PROD runs write real clock-in rows."
         required: true
@@ -38,6 +55,18 @@ jobs:
       contents: read
 
     steps:
+      - name: Resolve the app under test
+        id: app
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          case "$APP" in
+            "RunLoyal Frontend Desk KIOSK") echo "target_app=kiosk-android" >> "$GITHUB_OUTPUT" ;;
+            "StaffApp Plus for Kennel") echo "target_app=kennel-android" >> "$GITHUB_OUTPUT" ;;
+            "StaffApp Plus for Groomers") echo "target_app=groomers-android" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Unknown app: $APP"; exit 1 ;;
+          esac
+
       - name: Check out the appium-flutter test suite
         uses: actions/checkout@v4
 
@@ -66,20 +95,26 @@ jobs:
           appium driver install uiautomator2
           appium driver install --source=npm appium-flutter-driver
 
-      - name: Download the kiosk debug APK
+      - name: Download the debug APK
         env:
-          APK_URL: ${{ inputs.apk_url || secrets.KIOSK_APK_URL }}
+          APP: ${{ inputs.app }}
+          APK_URL_INPUT: ${{ inputs.apk_url }}
+          KIOSK_APK_URL_SECRET: ${{ secrets.KIOSK_APK_URL }}
         run: |
+          APK_URL="$APK_URL_INPUT"
+          if [ -z "$APK_URL" ] && [ "$APP" = "RunLoyal Frontend Desk KIOSK" ]; then
+            APK_URL="$KIOSK_APK_URL_SECRET"
+          fi
           if [ -z "$APK_URL" ]; then
-            echo "::error::No APK URL given. Pass apk_url when running this workflow, or set the KIOSK_APK_URL repository secret."
+            echo "::error::No APK URL given. Pass apk_url when running this workflow. Only the kiosk falls back to the KIOSK_APK_URL repository secret."
             exit 1
           fi
-          curl -fsSL "$APK_URL" -o "$RUNNER_TEMP/kiosk-debug.apk"
-          if ! unzip -l "$RUNNER_TEMP/kiosk-debug.apk" | grep -q 'AndroidManifest.xml'; then
+          curl -fsSL "$APK_URL" -o "$RUNNER_TEMP/app-under-test.apk"
+          if ! unzip -l "$RUNNER_TEMP/app-under-test.apk" | grep -q 'AndroidManifest.xml'; then
             echo "::error::The URL did not return an APK. Use a direct download link to the .apk file, not a web page."
             exit 1
           fi
-          echo "KIOSK_APK_PATH=$RUNNER_TEMP/kiosk-debug.apk" >> "$GITHUB_ENV"
+          echo "APK_PATH=$RUNNER_TEMP/app-under-test.apk" >> "$GITHUB_ENV"
 
       - name: Start Appium server
         run: |
@@ -100,6 +135,17 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Pick the emulator device
+        id: device
+        env:
+          DEVICE_TYPE: ${{ inputs.device_type }}
+        run: |
+          case "$DEVICE_TYPE" in
+            mobile) echo "profile=pixel_6" >> "$GITHUB_OUTPUT" ;;
+            tablet) echo "profile=pixel_tablet" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Unknown device_type: $DEVICE_TYPE"; exit 1 ;;
+          esac
+
       # reactivecircus/android-emulator-runner boots a real Android Virtual
       # Device on the runner, runs the given script while it's up, then shuts
       # it down — so the emulator's whole lifecycle for this run is this step.
@@ -109,12 +155,17 @@ jobs:
           api-level: 33
           target: google_apis
           arch: x86_64
-          profile: pixel_6
+          profile: ${{ steps.device.outputs.profile }}
           disable-animations: true
-          script: npm run test:android
+          script: |
+            if [ "$TARGET_APP" = "kiosk-android" ]; then npm run test:android; else npm run test:android:login; fi
         env:
-          TARGET_APP: kiosk-android
-          KIOSK_APK_PATH: ${{ env.KIOSK_APK_PATH }}
+          TARGET_APP: ${{ steps.app.outputs.target_app }}
+          # Each app entry in config/apps.js reads its own APK path variable;
+          # only the one for the selected app is used.
+          KIOSK_APK_PATH: ${{ env.APK_PATH }}
+          KENNEL_APK_PATH: ${{ env.APK_PATH }}
+          GROOMERS_APK_PATH: ${{ env.APK_PATH }}
           ANDROID_UDID: emulator-5554
           KIOSK_TEST_EMAIL: ${{ secrets.KIOSK_TEST_EMAIL }}
           KIOSK_TEST_PASSWORD: ${{ secrets.KIOSK_TEST_PASSWORD }}

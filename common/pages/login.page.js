@@ -7,11 +7,11 @@ const DISMISS_PROBE_TIMEOUT_MS = 3_000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class LoginPage {
-  constructor(driver) {
+  constructor(driver, { keyPrefix = 'kiosk_login' } = {}) {
     this.driver = driver;
-    this.emailField = byValueKey('kiosk_login_email_field');
-    this.passwordField = byValueKey('kiosk_login_password_field');
-    this.signInButton = byValueKey('kiosk_login_submit_button');
+    this.emailField = byValueKey(`${keyPrefix}_email_field`);
+    this.passwordField = byValueKey(`${keyPrefix}_password_field`);
+    this.signInButton = byValueKey(`${keyPrefix}_submit_button`);
   }
 
   async waitUntilShown() {

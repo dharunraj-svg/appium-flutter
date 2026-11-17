@@ -18,6 +18,7 @@ async function recoverToCleanState(dialog, selectLocation, employee, state, reco
   }
 
   await dialog.endShift();
+  await dialog.waitUntilDismissed();
   await selectLocation.waitUntilShown();
   await selectLocation.openClockDialog();
   await dialog.authenticate(employee);
@@ -67,6 +68,7 @@ export async function clockInAndOut(driver, { employee, location, udid, platform
     await recorder.step('Break ended — shift active again');
 
     await dialog.endShift();
+    await dialog.waitUntilDismissed();
     await selectLocation.waitUntilShown();
     await recorder.step('Shift ended — back at the location screen');
   } catch (error) {
