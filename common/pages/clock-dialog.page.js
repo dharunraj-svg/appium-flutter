@@ -1,6 +1,10 @@
 import { byType, byValueKey, descendant } from 'appium-flutter-finder';
 
 const SHORT_WAIT_MS = 30_000;
+// Every clock action runs a GPS fix first, and the app's fix has no timeout.
+// A cold fix on the Android emulator took longer than 30 s in CI, so waits for
+// a clock state change after an action use this longer limit.
+const CLOCK_ACTION_WAIT_MS = 120_000;
 const PROBE_TIMEOUT_MS = 1_000;
 const POLL_INTERVAL_MS = 500;
 
@@ -109,20 +113,20 @@ export class ClockDialogPage {
   }
 
   async waitUntilOnShift() {
-    await this.waitUntil(this.endShiftButton, true);
+    await this.waitUntil(this.endShiftButton, true, CLOCK_ACTION_WAIT_MS);
   }
 
   async waitUntilOffShift() {
-    await this.waitUntil(this.startShiftButton, true);
+    await this.waitUntil(this.startShiftButton, true, CLOCK_ACTION_WAIT_MS);
   }
 
   async waitUntilOnBreak() {
-    await this.waitUntil(this.endBreakButton, true);
+    await this.waitUntil(this.endBreakButton, true, CLOCK_ACTION_WAIT_MS);
   }
 
   // Back to "on shift, not on break" — Start Break is visible again.
   async waitUntilShiftActive() {
-    await this.waitUntil(this.startBreakButton, true);
+    await this.waitUntil(this.startBreakButton, true, CLOCK_ACTION_WAIT_MS);
   }
 
   // The location screen stays mounted underneath the dialog, so its clock chip
@@ -140,6 +144,6 @@ export class ClockDialogPage {
   // Ending a shift closes the dialog. Wait for its controls to disappear before
   // treating the location screen as ready for the next tap on the clock chip.
   async waitUntilDismissed() {
-    await this.waitUntil(this.endShiftButton, false);
+    await this.waitUntil(this.endShiftButton, false, CLOCK_ACTION_WAIT_MS);
   }
 }
