@@ -156,6 +156,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: ${{ steps.device.outputs.profile }}
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 4096
           disable-animations: true
           script: |
             if [ "$TARGET_APP" = "kiosk-android" ]; then npm run test:android; else npm run test:android:login; fi
