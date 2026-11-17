@@ -182,5 +182,6 @@ jobs:
           path: |
             logs/report/latest.html
             logs/*-failure.png
+            logs/*-failure.txt
           if-no-files-found: ignore
           retention-days: 14

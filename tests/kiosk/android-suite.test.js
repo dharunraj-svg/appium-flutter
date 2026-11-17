@@ -6,6 +6,7 @@ import { loadSuiteConfig } from '../../config/index.js';
 import { attemptClockInWithWrongCredentials } from '../../common/flows/kiosk-clock-auth-failure.flow.js';
 import { clockInAndOut } from '../../common/flows/kiosk-clock.flow.js';
 import { loginAsKioskStaff } from '../../common/flows/kiosk-login.flow.js';
+import { dumpLogcat } from '../../common/support/android.js';
 import { createStepRecorder } from '../../common/support/report.js';
 import { closeSession, openSession } from '../../common/support/session.js';
 import { takeScreenshot } from '../../common/support/device.js';
@@ -80,6 +81,9 @@ describe('kiosk suite — Android (one shared app session)', () => {
       const logsDir = new URL('../../logs/', import.meta.url);
       await mkdir(logsDir, { recursive: true });
       await takeScreenshot('android', config.device.udid, new URL('android-clock-in-out-failure.png', logsDir).pathname).catch(
+        () => {},
+      );
+      await dumpLogcat(config.device.udid, new URL('android-clock-in-out-logcat-failure.txt', logsDir).pathname).catch(
         () => {},
       );
       throw error;

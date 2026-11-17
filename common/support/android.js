@@ -23,3 +23,11 @@ export async function screenshot(deviceId, outPath) {
   });
   await writeFile(outPath, stdout);
 }
+
+export async function dumpLogcat(deviceId, outPath) {
+  const { stdout } = await run('adb', adbArgs(deviceId, ['logcat', '-d', '-v', 'time']), {
+    encoding: 'utf8',
+    maxBuffer: 50 * 1024 * 1024,
+  });
+  await writeFile(outPath, stdout);
+}
