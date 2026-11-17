@@ -16,14 +16,23 @@ on:
         description: "URL to download the kiosk debug APK from. Defaults to the KIOSK_APK_URL secret if left blank."
         required: false
         type: string
+      target_environment:
+        description: "GitHub environment whose secrets this run uses. PROD runs write real clock-in rows."
+        required: true
+        type: choice
+        options:
+          - UAT2
+          - PROD
+        default: UAT2
 
 concurrency:
-  group: kiosk-android-e2e-${{ github.ref }}
+  group: kiosk-android-e2e-${{ inputs.target_environment }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   android-e2e:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -107,8 +116,8 @@ jobs:
           KIOSK_TEST_PASSWORD: ${{ secrets.KIOSK_TEST_PASSWORD }}
           KIOSK_EMPLOYEE_EMAIL: ${{ secrets.KIOSK_EMPLOYEE_EMAIL }}
           KIOSK_EMPLOYEE_PASSWORD_OR_PIN: ${{ secrets.KIOSK_EMPLOYEE_PASSWORD_OR_PIN }}
-          KIOSK_SIM_LATITUDE: ${{ vars.KIOSK_SIM_LATITUDE }}
-          KIOSK_SIM_LONGITUDE: ${{ vars.KIOSK_SIM_LONGITUDE }}
+          KIOSK_SIM_LATITUDE: ${{ secrets.KIOSK_SIM_LATITUDE }}
+          KIOSK_SIM_LONGITUDE: ${{ secrets.KIOSK_SIM_LONGITUDE }}
 
       - name: Upload the HTML report and failure screenshots
         if: always()

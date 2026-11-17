@@ -155,13 +155,14 @@ GitHub PR to trigger off; wherever the APK actually gets built hands this workfl
 **To use it, once this project is pushed to a GitHub repo:**
 
 1. Trigger it manually — Actions tab → "Kiosk Android E2E" → "Run workflow" — pasting the APK
-   URL into the `apk_url` input. Or set it to run with no input every time by adding a
+   URL into the `apk_url` input and picking `UAT2` or `PROD` for `target_environment`. Or set it to run with no input every time by adding a
    `KIOSK_APK_URL` repository secret with a stable "latest build" URL.
-2. Set these repository **secrets**: `KIOSK_APK_URL` (optional, see above), `KIOSK_TEST_EMAIL`,
-   `KIOSK_TEST_PASSWORD`, `KIOSK_EMPLOYEE_EMAIL`, `KIOSK_EMPLOYEE_PASSWORD_OR_PIN`.
-3. Set these repository **variables** (not secret — just coordinates): `KIOSK_SIM_LATITUDE`,
-   `KIOSK_SIM_LONGITUDE`.
-4. The HTML report and any failure screenshots upload as a build artifact on every run
+2. For each environment you run against (**UAT2**, and **PROD** if needed), create it and add these as environment **secrets**:
+   `KIOSK_TEST_EMAIL`, `KIOSK_TEST_PASSWORD`, `KIOSK_EMPLOYEE_EMAIL`,
+   `KIOSK_EMPLOYEE_PASSWORD_OR_PIN`, `KIOSK_SIM_LATITUDE`, `KIOSK_SIM_LONGITUDE`. The job runs
+   with the chosen environment, so these are read from it. `KIOSK_APK_URL` (optional,
+   see above) stays a repository secret.
+3. The HTML report and any failure screenshots upload as a build artifact on every run
    (`if: always()`), downloadable from the run's summary page.
 
 To trigger it automatically from wherever the APK gets built — a Bitbucket Pipeline, Codemagic,
