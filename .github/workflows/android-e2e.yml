@@ -174,14 +174,24 @@ jobs:
           KIOSK_EMPLOYEE_PASSWORD_OR_PIN: ${{ secrets.KIOSK_EMPLOYEE_PASSWORD_OR_PIN }}
           KIOSK_SIM_LATITUDE: ${{ secrets.KIOSK_SIM_LATITUDE }}
           KIOSK_SIM_LONGITUDE: ${{ secrets.KIOSK_SIM_LONGITUDE }}
+          E2E_ENVIRONMENT: ${{ inputs.target_environment }}
+          E2E_DEVICE: ${{ inputs.device_type }}
+          E2E_COMMIT: ${{ github.sha }}
+          E2E_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      - name: Upload the HTML report and failure screenshots
+      - name: Build the test management sheet
+        if: always()
+        run: npm run sheet
+
+      - name: Upload the HTML report, the test sheet and failure evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kiosk-android-report
           path: |
             logs/report/latest.html
+            logs/report/results.json
+            docs/test-management.xlsx
             logs/*-failure.png
             logs/*-failure.txt
           if-no-files-found: ignore

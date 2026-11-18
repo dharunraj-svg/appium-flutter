@@ -23,10 +23,53 @@ npm install
 cp .env.example .env   # then fill in the test accounts and the simulator location
 ```
 
+## Run on your machine: `npm run test:local`
+
+One command runs the whole suite for one app on your own simulator or emulator:
+
+```bash
+cd /Users/runloyal/RunLoyal/Flutter/appium/appium-flutter
+npm run test:local
+```
+
+It asks two questions, then does the rest:
+
+1. **Platform**: `1) iOS simulator` or `2) Android emulator`.
+2. **App**: `1) RunLoyal Front Desk Kiosk`, `2) StaffApp Plus for Kennel` or `3) StaffApp Plus for Groomers`.
+
+For the kiosk it also asks you to confirm, because the clock tests write real clock-in rows to the
+environment in `.env`.
+
+Then it:
+
+- finds the debug build (`.app` for iOS, `.apk` for Android) in the Flutter checkout, or runs
+  `flutter build` for it if it is missing;
+- boots the simulator or starts the emulator if none is running;
+- starts Appium if it is not already running;
+- runs the matching suite: the kiosk iOS or Android suite, or the shared staff sign-in check for
+  kennel and groomers;
+- rebuilds `logs/report/latest.html` and `docs/test-management.xlsx`, then opens the report.
+
+Skip the questions with flags, or check the plan without running anything:
+
+```bash
+npm run test:local -- --platform android --app groomers --yes
+npm run test:local -- --platform ios --app kennel --dry-run
+npm run test:local -- --platform ios --app groomers --rebuild   # rebuild even if a build exists
+```
+
+Other flags: `--no-open` keeps the report from opening. Source folders default to the Flutter
+checkouts; override them with `KIOSK_SOURCE_DIR`, `KENNEL_SOURCE_DIR` or `GROOMERS_SOURCE_DIR`.
+Optional: `ANDROID_AVD` picks which emulator to start.
+
+Requirements: the `.env` file (see Setup), Xcode for iOS, the Android SDK with an AVD for Android,
+and `flutter` and `appium` on your PATH.
+
 ## Commands
 
 | Command | What it does |
 | --- | --- |
+| `npm run test:local` | Interactive: pick a platform and an app, then run that suite end to end on your machine. See "Run on your machine" above. |
 | `npm run doctor` | Checks Appium, the booted simulator, and that one session can start and reach the Sign in button. Writes a screenshot to `logs/`. |
 | `npm test` | **The one to run normally.** One Appium session for the whole suite: one app install, one login, then login / clock-in-break-out / wrong-credentials run back to back reusing it. Faster than reinstalling per test, since only the first check needs the app to actually launch from scratch. |
 | `npm run test:separate-sessions` | The old shape — each check gets its own fresh install and its own login, sequentially (`--test-concurrency=1` so they don't fight over the simulator). Slower; use it if you suspect one check is leaking state into the next and want to rule that out. |
@@ -35,7 +78,7 @@ cp .env.example .env   # then fill in the test accounts and the simulator locati
 | `npm run test:clock-in-wrong-credentials` | Just the wrong-PIN rejection check, on its own fresh install. Writes nothing — rejected at authentication. |
 | `npm run report` | Rebuilds `logs/report/latest.html` from whatever step data is currently recorded, without running any test. Rarely needed by hand — every `test*` script already runs this at the end automatically. |
 | `npm run test:android` | The Android counterpart of `npm test` — one shared session, same three checks, against `TARGET_APP=kiosk-android`. See "Running on Android" below. |
-| `npm run test:android:login` | The shared sign-in check only, against whichever Android app `TARGET_APP` names (`kennel-android`, `groomers-android`, or `kiosk-android`). |
+| `npm run test:android:login` | The shared sign-in checks, against whichever app `TARGET_APP` names. LOGIN-001 runs on every app; LOGIN-004 (biometric setup sheet) runs on kennel and groomers only (`kennel`, `groomers`, `kennel-android`, `groomers-android`, `kiosk`, `kiosk-android`). |
 
 `tests/kiosk/suite.test.js` is what `npm test` runs — it opens one session in a `before` hook and
 closes it in `after`, and the three checks are `test()`s inside that one `describe`, reusing the
@@ -73,8 +116,9 @@ common/
                     each takes an optional `recorder` to log a step + screenshot
 tests/kiosk/        kiosk tests. They compose the common flows. android-suite.test.js is the
                     Android counterpart of suite.test.js.
-tests/shared/       checks that run on every Android app. android-login.test.js signs in with
-                    the shared staff login (kennel, groomers, and the kiosk).
+tests/shared/       checks on the shared sign-in, on iOS and Android. staff-login.test.js signs in with
+                    the shared staff login (kennel, groomers, and the kiosk) and, on kennel and groomers,
+                    checks the biometric setup sheet (LOGIN-004).
 scripts/
   doctor.js         environment and session check
   build-report.js   turns recorded steps into logs/report/latest.html, then clears them
@@ -209,6 +253,16 @@ See `.env.example`. Credentials live only in `.env`, which is git-ignored.
   `apps/kiosk/lib/screens/select_location/widgets/employee_clock_dialog.dart`. The shared staff
   login in `packages/staff_app_ui/lib/screens/login/login_gate.dart` uses `staff_login_*` keys, which
   kennel and groomers both get. Any new interactive element needs the same before a test can target it.
+- **The biometric setup sheet is found by its label.** After a sign-in, kennel and groomers can open a
+  sheet that offers Face ID or fingerprint sign-in. It has no `Key` yet, so
+  `common/pages/biometric-setup.page.js` finds its "Skip for now" button by text. The sign-in flow closes
+  the sheet before it waits for the login screen to go, because the login screen stays mounted behind
+  it. The sheet only appears when the device has Face ID or a fingerprint enrolled and biometric login
+  is off. When it does not appear, the flow carries on without it, and LOGIN-004 fails with a clear
+  message. A `Key` on that button in `staff_app_ui` would let the page object use it instead.
+- **Frame sync is off while the biometric sheet is open.** The Sign in button keeps spinning behind the
+  sheet, and Flutter Driver's frame-synced waits never finish while an animation runs. The sign-in flow
+  turns frame sync off (`flutter:setFrameSync`) for the sign-in window and turns it back on afterwards.
 - **Reading on-screen text needs the actual `Text` widget, not a wrapper.** The Flutter driver's
   `getText` command only works on a `Text`/`RichText`/`EditableText` element — a `Key` on a
   composite container (like the error banners here) can't be read directly. Target the `Text`

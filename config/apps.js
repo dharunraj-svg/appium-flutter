@@ -18,14 +18,32 @@ const APPS = {
     loginKeyPrefix: 'kiosk_login',
   },
   // Kennel and groomers share LoginGate from staff_app_ui, so they carry the
-  // same staff_login_* keys. Their applicationIds are from
-  // apps/kennel and apps/groomers android/app/build.gradle.kts.
+  // same staff_login_* keys. Bundle ids and applicationIds come from each app's
+  // ios/Runner.xcodeproj and android/app/build.gradle.kts. They also show the
+  // biometric setup sheet after sign-in (biometricSetupPrompt).
+  kennel: {
+    displayName: 'StaffApp Plus for Kennel',
+    platform: 'ios',
+    bundleId: 'com.itrustkennel.staffapp.plus.kennel',
+    appPathVariable: 'KENNEL_APP_PATH',
+    loginKeyPrefix: 'staff_login',
+    biometricSetupPrompt: true,
+  },
+  groomers: {
+    displayName: 'StaffApp Plus for Groomers',
+    platform: 'ios',
+    bundleId: 'com.itrustkennel.staffapp.plus',
+    appPathVariable: 'GROOMERS_APP_PATH',
+    loginKeyPrefix: 'staff_login',
+    biometricSetupPrompt: true,
+  },
   'kennel-android': {
     displayName: 'StaffApp Plus for Kennel (Android)',
     platform: 'android',
     appPackage: 'com.itrustkennel.staffapp.plus.kennel',
     appPathVariable: 'KENNEL_APK_PATH',
     loginKeyPrefix: 'staff_login',
+    biometricSetupPrompt: true,
   },
   'groomers-android': {
     displayName: 'StaffApp Plus for Groomers (Android)',
@@ -33,10 +51,15 @@ const APPS = {
     appPackage: 'com.itrustkennel.staffapp.plus',
     appPathVariable: 'GROOMERS_APK_PATH',
     loginKeyPrefix: 'staff_login',
+    biometricSetupPrompt: true,
   },
 };
 
 export const SUPPORTED_APPS = Object.keys(APPS);
+
+export function hasBiometricSetup(name = process.env.TARGET_APP?.trim() || 'kiosk') {
+  return APPS[name]?.biometricSetupPrompt === true;
+}
 
 export function selectApp(source = process.env) {
   const name = readEnv('TARGET_APP', source)?.trim() ?? 'kiosk';
