@@ -138,6 +138,10 @@ flowchart LR
 | `npm run test:clock-in-wrong-credentials` | iOS wrong-PIN check. Writes nothing. |
 | `npm run test:android` | Android kiosk suite (3 cases). |
 | `npm run test:android:login` | Shared sign-in check on the Android app named by `TARGET_APP`. |
+| `npm run test:kiosk-main` | Kiosk check-in and check-out boxes, visit-type cards, Continue routing and the QR squares. Read-only. |
+| `npm run test:new-client` | New client QR dialog, owner form and pet form. KIOSK-NEW-001 to 004 are read-only. KIOSK-NEW-005 to 007 are in `npm run test:new-client:write`. |
+| `npm run test:new-client:write` | QA owner and pet writes to UAT2 (KIOSK-NEW-005 to 007). Every run creates real rows, so run it only on purpose. |
+| `npm run test:qa-data` | Offline checks of the QA owner and pet data helpers. No device needed. |
 | `npm run report` | Rebuilds `logs/report/latest.html` and `results.json` from recorded steps. |
 | `npm run test:local` | Interactive local runner: asks for iOS or Android and kiosk, kennel or groomers, builds if needed, starts the device and Appium, runs the suite, rebuilds the report and the sheet, opens the report. |
 | `npm run sheet` | Regenerates `docs/test-management.xlsx` from the cases and the last results. |
@@ -214,6 +218,27 @@ Each run writes real rows to UAT2 when the clock tests pass. Ask before starting
   `common/flows/staff-login.flow.js`) and turns it back on afterwards.
 - **Negative access checks need accounts.** Accounts without the kennel, groomer or kiosk flag are
   needed. Until they exist, those cases are `Not Implemented`.
+
+- **Kiosk new-client screens have no Flutter Keys.** Tests match visible text. The QR squares are found by
+  widget type (`KioskQrSquareButton`), and the QR scanner by `CustomerQrScannerScreen`. Keys would make these
+  more stable.
+- **The visit-type headline is rich text.** "How are you visiting?" cannot be matched by text, so the
+  "Back to home" chip marks that screen.
+- **Opposite default flags.** The check-in and check-out boxes show unless their flag says `hide == false`.
+  Visit-type cards show only when their flag says `hide == true`, so a missing flag hides the card. Confirm
+  this is intended.
+- **QA owners and pets stay in UAT2.** The kiosk has no delete for owners or pets. The `QA-` names and the
+  `dharunraj+<date><NN>` emails make them easy to find later.
+- **Write cases are separate.** KIOSK-NEW-005 to 007 run only with `npm run test:new-client:write`, which writes real rows to UAT2 on every run.
+  Their sheet status stays Pending until that command runs.
+- **Frame sync and animations.** The QR scanner and the owner form have repeating animations or spinners.
+  Flutter driver waits for frame sync before each command, so those screens hang every later call. The QR
+  and new-client sessions turn frame sync off (`common/support/frame-sync.js`). Each navigation case runs
+  in its own session, because Continue pushes a route that stays mounted underneath.
+
+- **Order in the shared suites.** Sign-in, then the clock lifecycle (KIOSK-CLK-001), then the wrong-PIN check
+  (KIOSK-CLK-002), which closes its dialog. Then Continue on the location screen (KIOSK-CLK-003) opens the
+  check-in/check-out screen.
 
 ## 13. Rules for AI agents
 

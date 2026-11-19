@@ -1,4 +1,4 @@
-import { byType, byValueKey, descendant } from 'appium-flutter-finder';
+import { byTooltip, byType, byValueKey, descendant } from 'appium-flutter-finder';
 
 import { dismissNotRespondingDialog } from '../support/android.js';
 
@@ -21,6 +21,8 @@ export class ClockDialogPage {
     this.endBreakButton = byValueKey('kiosk_clock_end_break_button');
     this.startBreakButton = byValueKey('kiosk_clock_start_break_button');
     this.endShiftButton = byValueKey('kiosk_clock_end_shift_button');
+    // The header close icon. It has a tooltip but no key.
+    this.closeButton = byTooltip('Close');
     this.actionErrorNotice = byValueKey('kiosk_clock_action_error_notice');
     this.authErrorNotice = byValueKey('kiosk_clock_auth_error_notice');
     // getText only reads an actual Text/RichText/EditableText widget, not a
@@ -104,6 +106,19 @@ export class ClockDialogPage {
 
   async endShift() {
     await this.driver.elementClick(this.endShiftButton);
+  }
+
+  async close() {
+    await this.driver.elementClick(this.closeButton);
+  }
+
+  async waitUntilClosed(timeoutMs = SHORT_WAIT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!(await this.isVisible(this.emailField))) return;
+      await sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error('Clock dialog did not close after tapping Close');
   }
 
   async waitUntil(finder, expected, timeoutMs = SHORT_WAIT_MS) {

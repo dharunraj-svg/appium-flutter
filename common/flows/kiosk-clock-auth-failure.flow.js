@@ -25,6 +25,9 @@ export async function attemptClockInWithWrongCredentials(
     const errorText = await dialog.readAuthError();
     if (errorText) {
       await recorder.step('Rejected with an error, as expected', { message: errorText });
+      await dialog.close();
+      await dialog.waitUntilClosed();
+      await recorder.step('Closed the clock dialog, back on the location screen');
       return errorText;
     }
     if (await dialog.isVisible(dialog.startShiftButton)) {

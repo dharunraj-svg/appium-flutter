@@ -13,6 +13,10 @@
     "test:clock-in-wrong-credentials": "node --env-file-if-exists=.env --test tests/kiosk/clock-in-wrong-credentials.test.js; s=$?; node scripts/build-report.js; exit $s",
     "test:android": "node --env-file-if-exists=.env --test tests/kiosk/android-suite.test.js; s=$?; node scripts/build-report.js; exit $s",
     "test:android:login": "node --env-file-if-exists=.env --test tests/shared/staff-login.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:kiosk-main": "node --env-file-if-exists=.env --test tests/kiosk/kiosk-main.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:new-client": "node --env-file-if-exists=.env --test tests/kiosk/new-client.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:new-client:write": "node --env-file-if-exists=.env --test tests/kiosk/new-client-write.test.js; s=$?; node scripts/build-report.js; exit $s",
+    "test:qa-data": "node --test tests/offline/qa-data.test.js",
     "report": "node scripts/build-report.js",
     "sheet": "node scripts/build-test-sheet.js",
     "test:local": "node scripts/run-local.js"
