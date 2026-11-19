@@ -1,10 +1,6 @@
 import { byValueKey } from 'appium-flutter-finder';
 
 const SHOW_TIMEOUT_MS = 60_000;
-const POLL_INTERVAL_MS = 500;
-const DISMISS_PROBE_TIMEOUT_MS = 3_000;
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class LoginPage {
   constructor(driver, { keyPrefix = 'kiosk_login' } = {}) {
@@ -30,16 +26,14 @@ export class LoginPage {
     await this.driver.elementClick(this.signInButton);
   }
 
-  async waitUntilDismissed(timeoutMs) {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      try {
-        await this.driver.execute('flutter:waitForAbsent', this.signInButton, DISMISS_PROBE_TIMEOUT_MS);
-        return;
-      } catch {
-        await sleep(POLL_INTERVAL_MS);
-      }
+  // One probe. True once the sign-in button has left the tree. The flow keeps
+  // polling, because the biometric setup sheet can open before that happens.
+  async isDismissed(probeTimeoutMs) {
+    try {
+      await this.driver.execute('flutter:waitForAbsent', this.signInButton, probeTimeoutMs);
+      return true;
+    } catch {
+      return false;
     }
-    throw new Error(`Login screen still visible after ${timeoutMs} ms`);
   }
 }

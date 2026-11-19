@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { after, before, describe, test } from 'node:test';
+import { after, before, describe } from 'node:test';
 
+import { caseTest } from '../../cases/index.js';
 import { loadSuiteConfig } from '../../config/index.js';
 import { attemptClockInWithWrongCredentials } from '../../common/flows/kiosk-clock-auth-failure.flow.js';
 import { clockInAndOut } from '../../common/flows/kiosk-clock.flow.js';
@@ -44,12 +45,14 @@ describe('kiosk suite — Android (one shared app session)', () => {
     await closeSession(driver);
   });
 
-  test('kiosk staff can sign in and leave the login screen', { timeout: 300_000 }, async () => {
+  caseTest('LOGIN-001', { timeout: 300_000 }, async () => {
     const recorder = createStepRecorder({
       testFile: 'android-suite.test.js',
       testName: 'login',
       udid: config.device.udid,
       platform: 'android',
+      caseId: 'LOGIN-001',
+      app: 'kiosk',
     });
     try {
       await loginAsKioskStaff(driver, config.users.kioskStaff, { recorder });
@@ -60,12 +63,14 @@ describe('kiosk suite — Android (one shared app session)', () => {
     }
   });
 
-  test('kiosk staff signs in, then an employee clocks in and out', { timeout: 600_000 }, async () => {
+  caseTest('KIOSK-CLK-001', { timeout: 600_000 }, async () => {
     const recorder = createStepRecorder({
       testFile: 'android-suite.test.js',
       testName: 'clock in, break, and out',
       udid: config.device.udid,
       platform: 'android',
+      caseId: 'KIOSK-CLK-001',
+      app: 'kiosk',
     });
     try {
       // Already logged in by the previous test — clockInAndOut picks up
@@ -92,12 +97,14 @@ describe('kiosk suite — Android (one shared app session)', () => {
     }
   });
 
-  test('kiosk rejects a wrong employee PIN on the clock-in dialog', { timeout: 300_000 }, async () => {
+  caseTest('KIOSK-CLK-002', { timeout: 300_000 }, async () => {
     const recorder = createStepRecorder({
       testFile: 'android-suite.test.js',
       testName: 'wrong employee PIN rejected',
       udid: config.device.udid,
       platform: 'android',
+      caseId: 'KIOSK-CLK-002',
+      app: 'kiosk',
     });
     try {
       const errorText = await attemptClockInWithWrongCredentials(driver, {

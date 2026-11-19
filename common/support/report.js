@@ -25,11 +25,15 @@ const noopRecorder = {
   async finish() {},
 };
 
-export function createStepRecorder({ testFile, testName, udid, platform = 'ios' }) {
+// `caseId` links the run to a case in cases/; `app` is the case's app key
+// (kiosk, kennel or groomers). Both are carried on every record so the report
+// and the review sheet can group results by case and app.
+export function createStepRecorder({ testFile, testName, udid, platform = 'ios', caseId = null, app = null }) {
   if (!udid) return noopRecorder;
 
   mkdirSync(SCREENS_DIR, { recursive: true });
   const testSlug = slug(`${testFile}-${testName}`);
+  const context = { testFile, testName, caseId, app, platform };
   let stepIndex = 0;
 
   return {
@@ -39,8 +43,7 @@ export function createStepRecorder({ testFile, testName, udid, platform = 'ios' 
       const shotPath = new URL(shotName, SCREENS_DIR).pathname;
       await takeScreenshot(platform, udid, shotPath).catch(() => {});
       appendRecord({
-        testFile,
-        testName,
+        ...context,
         stepIndex,
         name,
         message: message ?? null,
@@ -51,8 +54,7 @@ export function createStepRecorder({ testFile, testName, udid, platform = 'ios' 
 
     async finish(status, error) {
       appendRecord({
-        testFile,
-        testName,
+        ...context,
         final: true,
         status, // 'PASSED' | 'FAILED'
         error: error ? String(error.message ?? error) : null,
