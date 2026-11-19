@@ -79,6 +79,10 @@ and `flutter` and `appium` on your PATH.
 | `npm run report` | Rebuilds `logs/report/latest.html` from whatever step data is currently recorded, without running any test. Rarely needed by hand — every `test*` script already runs this at the end automatically. |
 | `npm run test:android` | The Android counterpart of `npm test` — one shared session, same three checks, against `TARGET_APP=kiosk-android`. See "Running on Android" below. |
 | `npm run test:android:login` | The shared sign-in checks, against whichever app `TARGET_APP` names. LOGIN-001 runs on every app; LOGIN-004 (biometric setup sheet) runs on kennel and groomers only (`kennel`, `groomers`, `kennel-android`, `groomers-android`, `kiosk`, `kiosk-android`). |
+| `npm run test:kiosk-main` | Kiosk check-in and check-out boxes, visit-type cards, Continue routing and the QR squares. Read-only. Needs `KIOSK_TEST_EMAIL` and `KIOSK_TEST_PASSWORD`. |
+| `npm run test:new-client` | New client QR dialog, owner form and pet form. KIOSK-NEW-001 to 004 are read-only. KIOSK-NEW-005 to 007 are in `npm run test:new-client:write`. The owner password is fixed in the code. |
+| `npm run test:new-client:write` | QA owner and pet writes to UAT2 (KIOSK-NEW-005 to 007). Every run creates real rows, so run it only on purpose. |
+| `npm run test:qa-data` | Offline checks of the QA owner and pet data helpers. No device needed. |
 
 `tests/kiosk/suite.test.js` is what `npm test` runs — it opens one session in a `before` hook and
 closes it in `after`, and the three checks are `test()`s inside that one `describe`, reusing the

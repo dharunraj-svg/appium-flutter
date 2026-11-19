@@ -7,6 +7,7 @@ import { loadSuiteConfig } from '../../config/index.js';
 import { attemptClockInWithWrongCredentials } from '../../common/flows/kiosk-clock-auth-failure.flow.js';
 import { clockInAndOut } from '../../common/flows/kiosk-clock.flow.js';
 import { loginAsKioskStaff } from '../../common/flows/kiosk-login.flow.js';
+import { openCheckInOut } from '../../common/flows/kiosk-navigation.flow.js';
 import { dumpLogcat } from '../../common/support/android.js';
 import { createStepRecorder } from '../../common/support/report.js';
 import { closeSession, openSession } from '../../common/support/session.js';
@@ -20,13 +21,15 @@ const WRONG_PIN = '9999';
 // ("maps the legacy incorrect PIN/password response").
 const EXPECTED_ERROR = 'Incorrect PIN or password. Please try again.';
 
-// Android counterpart of suite.test.js — same three checks, same flows, one
+// Android counterpart of suite.test.js — same checks, same flows, one
 // shared session. Only the device layer differs:
 //   - no iOS-style TCC permission dance: `appium:autoGrantPermissions` grants
 //     every manifest permission at install time, so there's no runtime
 //     prompt to race against at all.
 //   - GPS is mocked with `adb emu geo fix` instead of `xcrun simctl location`.
 //   - screenshots come from `adb exec-out screencap` instead of `simctl io`.
+// Order: sign-in, the clock lifecycle, the wrong-PIN check (which closes its dialog),
+// then Continue on the location screen, which opens the check-in/check-out screen.
 describe('kiosk suite — Android (one shared app session)', () => {
   let driver;
   let config;
@@ -124,6 +127,34 @@ describe('kiosk suite — Android (one shared app session)', () => {
         config.device.udid,
         new URL('android-wrong-credentials-failure.png', logsDir).pathname,
       ).catch(() => {});
+      throw error;
+    }
+  });
+
+  caseTest('KIOSK-CLK-003', { timeout: 300_000 }, async () => {
+    const recorder = createStepRecorder({
+      testFile: 'android-suite.test.js',
+      testName: 'continue to the check-in and check-out screen',
+      udid: config.device.udid,
+      platform: 'android',
+      caseId: 'KIOSK-CLK-003',
+      app: 'kiosk',
+    });
+    try {
+      await openCheckInOut(driver, {
+        location: config.location,
+        udid: config.device.udid,
+        platform: 'android',
+        recorder,
+      });
+      await recorder.finish('PASSED');
+    } catch (error) {
+      await recorder.finish('FAILED', error);
+      const logsDir = new URL('../../logs/', import.meta.url);
+      await mkdir(logsDir, { recursive: true });
+      await takeScreenshot('android', config.device.udid, new URL('android-continue-failure.png', logsDir).pathname).catch(
+        () => {},
+      );
       throw error;
     }
   });

@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { after, before, describe, test } from 'node:test';
+import { after, before, describe } from 'node:test';
 
+import { caseTest } from '../../cases/index.js';
 import { loadSuiteConfig } from '../../config/index.js';
 import { attemptClockInWithWrongCredentials } from '../../common/flows/kiosk-clock-auth-failure.flow.js';
 import { clockInAndOut } from '../../common/flows/kiosk-clock.flow.js';
 import { loginAsKioskStaff } from '../../common/flows/kiosk-login.flow.js';
+import { openCheckInOut } from '../../common/flows/kiosk-navigation.flow.js';
 import { createStepRecorder } from '../../common/support/report.js';
 import { closeSession, openSession } from '../../common/support/session.js';
 import { grantLocationPermission, screenshot } from '../../common/support/simulator.js';
@@ -18,13 +20,13 @@ const WRONG_PIN = '9999';
 // ("maps the legacy incorrect PIN/password response").
 const EXPECTED_ERROR = 'Incorrect PIN or password. Please try again.';
 
-// Runs all three kiosk checks in ONE Appium session: one fresh install, one
-// login, reused for everything after. The standalone tests/kiosk/*.test.js
-// files each do their own full install + login from scratch, which is
-// correct for running one of them in isolation but wastes a full
-// install-and-relaunch cycle per test when you really want to run all three.
-// This file is what `npm test` runs; the standalone files are still there
-// for debugging a single flow on its own.
+// Runs all the kiosk checks in ONE Appium session: one fresh install, one login,
+// reused for everything after. The standalone tests/kiosk/*.test.js files each do their
+// own install + login, which is for running one flow on its own.
+// This file is what `npm test` runs.
+//
+// Order: sign-in, the clock lifecycle, the wrong-PIN check (which closes its dialog),
+// then Continue on the location screen, which opens the check-in/check-out screen.
 describe('kiosk suite (one shared app session)', () => {
   let driver;
   let config;
@@ -43,8 +45,19 @@ describe('kiosk suite (one shared app session)', () => {
     await closeSession(driver);
   });
 
-  test('kiosk staff can sign in and leave the login screen', { timeout: 300_000 }, async () => {
-    const recorder = createStepRecorder({ testFile: 'suite.test.js', testName: 'login', udid: config.device.udid });
+  function recorderFor(caseId, testName) {
+    return createStepRecorder({
+      testFile: 'suite.test.js',
+      testName,
+      udid: config.device.udid,
+      platform: 'ios',
+      caseId,
+      app: 'kiosk',
+    });
+  }
+
+  caseTest('LOGIN-001', { timeout: 300_000 }, async () => {
+    const recorder = recorderFor('LOGIN-001', 'login');
     try {
       await loginAsKioskStaff(driver, config.users.kioskStaff, { recorder });
       await recorder.finish('PASSED');
@@ -54,12 +67,8 @@ describe('kiosk suite (one shared app session)', () => {
     }
   });
 
-  test('kiosk staff signs in, then an employee clocks in and out', { timeout: 600_000 }, async () => {
-    const recorder = createStepRecorder({
-      testFile: 'suite.test.js',
-      testName: 'clock in, break, and out',
-      udid: config.device.udid,
-    });
+  caseTest('KIOSK-CLK-001', { timeout: 600_000 }, async () => {
+    const recorder = recorderFor('KIOSK-CLK-001', 'clock in, break, and out');
     try {
       // Already logged in by the previous test — clockInAndOut picks up
       // from wherever the app currently is, it doesn't assume a fresh launch.
@@ -79,12 +88,8 @@ describe('kiosk suite (one shared app session)', () => {
     }
   });
 
-  test('kiosk rejects a wrong employee PIN on the clock-in dialog', { timeout: 300_000 }, async () => {
-    const recorder = createStepRecorder({
-      testFile: 'suite.test.js',
-      testName: 'wrong employee PIN rejected',
-      udid: config.device.udid,
-    });
+  caseTest('KIOSK-CLK-002', { timeout: 300_000 }, async () => {
+    const recorder = recorderFor('KIOSK-CLK-002', 'wrong employee PIN rejected');
     try {
       const errorText = await attemptClockInWithWrongCredentials(driver, {
         email: config.users.employee.email,
@@ -98,6 +103,25 @@ describe('kiosk suite (one shared app session)', () => {
       const logsDir = new URL('../../logs/', import.meta.url);
       await mkdir(logsDir, { recursive: true });
       await screenshot(config.device.udid, new URL('wrong-credentials-failure.png', logsDir).pathname).catch(() => {});
+      throw error;
+    }
+  });
+
+  caseTest('KIOSK-CLK-003', { timeout: 300_000 }, async () => {
+    const recorder = recorderFor('KIOSK-CLK-003', 'continue to the check-in and check-out screen');
+    try {
+      await openCheckInOut(driver, {
+        location: config.location,
+        udid: config.device.udid,
+        platform: 'ios',
+        recorder,
+      });
+      await recorder.finish('PASSED');
+    } catch (error) {
+      await recorder.finish('FAILED', error);
+      const logsDir = new URL('../../logs/', import.meta.url);
+      await mkdir(logsDir, { recursive: true });
+      await screenshot(config.device.udid, new URL('continue-failure.png', logsDir).pathname).catch(() => {});
       throw error;
     }
   });

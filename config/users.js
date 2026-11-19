@@ -9,6 +9,10 @@ export function readKioskStaff(source = process.env) {
   return { email, password };
 }
 
+// Password for the QA pet owner created by the new-client write cases. Fixed for
+// every run, so no .env entry is needed.
+export const NEW_OWNER_PASSWORD = 'a12345678';
+
 export function readEmployee(source = process.env) {
   const email = readEnv('KIOSK_EMPLOYEE_EMAIL', source)?.trim();
   const password = readEnv('KIOSK_EMPLOYEE_PASSWORD_OR_PIN', source);

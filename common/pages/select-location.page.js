@@ -6,6 +6,7 @@ export class SelectLocationPage {
   constructor(driver) {
     this.driver = driver;
     this.clockChip = byText('Staff Clock-In/Out');
+    this.continueButton = byText('Continue');
   }
 
   async waitUntilShown() {
@@ -14,5 +15,9 @@ export class SelectLocationPage {
 
   async openClockDialog() {
     await this.driver.elementClick(this.clockChip);
+  }
+
+  async tapContinue() {
+    await this.driver.elementClick(this.continueButton);
   }
 }
